@@ -30,23 +30,30 @@ git clone https://github.com/username/hourboost.git
 cd hourboost
 
 2. Create a virtual environment
+   
 python3 -m venv venv
+
 source venv/bin/activate  #Windows: venv\Scripts\activate
 
-3. Install dependencies
+4. Install dependencies
+   
 pip install -r requirements.txt
 
-4. Set up environment variables
+6. Set up environment variables
+   
 cp .env.example .env
 nano .env
 
 5-Fill in .env with your own values.
 
 5. Run
+   
 Development:
+
 python app.py
 
 Production (Gunicorn):
+
 gunicorn -c gunicorn.conf.py app:app
 
 🛡️ Security
@@ -68,8 +75,11 @@ Shopier webhook signature verification
 Duplicate payment prevention via transaction ID check
 
 🌐 Language Support
+
 HourBoost supports both Turkish and English:
+
 Turkish: hourboost.com.tr/
+
 English: hourboost.com.tr/en/
 Emails will be sent in Turkish regardless of which option you choose.
 
