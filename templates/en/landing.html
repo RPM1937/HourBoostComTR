@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
 <meta name="google-adsense-account" content="ca-pub-4233612570799995">
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4233612570799995" crossorigin="anonymous"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Hour Boost — Oyun Saatlerini Otomatik Arttır</title>
-<meta name="description" content="Steam oyun saatlerinizi otomatik olarak arttırın. 7/24 boost, kolay kurulum, ücretsiz plan.">
+<title>Hour Boost — Automatically Boost Your Game Hours</title>
+<meta name="description" content="Automatically boost your Steam game hours. 24/7 boosting, easy setup, free plan.">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#0d0e12;--surface:#13151b;--surface2:#1a1d26;--border:rgba(255,255,255,0.07);--accent:#00e5a0;--accent-dim:rgba(0,229,160,0.12);--purple:#7c5cfc;--text:#e8eaf0;--text-muted:#5a6070;--text-sub:#8892a0;}
@@ -69,62 +69,123 @@ gtag('consent', 'default', {
 <body>
 
 <nav class="navbar">
-  <div class="nav-logo"><div class="nav-logo-icon">&#9889;</div>HOUR <span>BOOST</span></div>
+  <div class="nav-logo">
+    <div class="nav-logo-icon">&#9889;</div>HOUR <span>BOOST</span>
+  </div>
   <div class="nav-links">
-    <a href="#features">Özellikler</a>
-    <a href="/pricing">Planlar</a>
-    <a href="/en/" style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:var(--text-muted);font-size:0.82rem;font-weight:600;text-decoration:none;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.color='var(--text-muted)'">🌐 EN</a>
-    <a href="/dashboard" class="nav-cta">Giriş Yap</a>
+    <a href="#features">Features</a>
+    <a href="/en/pricing">Plans</a>
+    <a href="/en" style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:var(--text-muted);font-size:0.82rem;font-weight:600;text-decoration:none;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.15)';this.style.color='var(--text-muted)'">🌐 TR</a>
+    <a href="/en/dashboard" class="nav-cta">Login</a>
   </div>
 </nav>
 
 <section class="hero">
- <div class="hero-content">
-  <div class="hero-badge">&#9889; 7/24 Kesintisiz Boost</div>
-  <h1 class="hero-title">Steam Oyun Saatlerini<br><span>Otomatik Arttır</span></h1>
-  <p class="hero-sub">Hesabınızı bağlayın, oyunlarınızı seçin ve boostu başlatın. Gerisini biz halledelim. Ücretsiz planla hemen başlayın.</p>
-  <div class="hero-btns">
-   <a href="/dashboard" class="hero-btn-primary">&#128640; Ücretsiz Başla</a>
-   <a href="#features" class="hero-btn-secondary">Nasıl Çalışıyor?</a>
+  <div class="hero-content">
+    <div class="hero-badge">&#9889; 24/7 Uninterrupted Boost</div>
+    <h1 class="hero-title">Automatically Boost<br><span>Steam Game Hours</span></h1>
+    <p class="hero-sub">Connect your account, select your games, and start boosting. We handle the rest. Start for free right now.</p>
+    <div class="hero-btns">
+      <a href="/en/dashboard" class="hero-btn-primary">&#128640; Start for Free</a>
+      <a href="#features" class="hero-btn-secondary">How Does It Work?</a>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hero-stat-value" id="hs-users">-</div>
+        <div class="hero-stat-label">Users</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-value" id="hs-boosts">-</div>
+        <div class="hero-stat-label">Active Boosts</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-value">24/7</div>
+        <div class="hero-stat-label">Uninterrupted</div>
+      </div>
+    </div>
   </div>
-  <div class="hero-stats">
-   <div class="hero-stat"><div class="hero-stat-value" id="hs-users">-</div><div class="hero-stat-label">Kullanıcı</div></div>
-   <div class="hero-stat"><div class="hero-stat-value" id="hs-boosts">-</div><div class="hero-stat-label">Aktif Boost</div></div>
-   <div class="hero-stat"><div class="hero-stat-value">7/24</div><div class="hero-stat-label">Kesintisiz</div></div>
-  </div>
- </div>
 </section>
+
 <section class="features" id="features">
- <h2 class="features-title">Neden Hour Boost?</h2>
- <p class="features-sub">Kolay, hızlı ve güvenilir boost deneyimi</p>
- <div class="features-grid">
-  <div class="feature-card"><div class="feature-icon">&#9889;</div><div class="feature-name">Anında Başlat</div><div class="feature-desc">Steam hesabınızı bağlayın, oyun seçin, tek tıkla boost başlatın. Kurulum 1 dakika sürer.</div></div>
-  <div class="feature-card"><div class="feature-icon">&#128274;</div><div class="feature-name">Güvenli Bağlantı</div><div class="feature-desc">Steam Guard ve 2FA desteği. Şifreniz sunucuda saklanmaz, sadece oturum tokeni kullanılır.</div></div>
-  <div class="feature-card"><div class="feature-icon">&#128260;</div><div class="feature-name">Otomatik Yeniden Bağlantı</div><div class="feature-desc">Bağlantı koparsa otomatik olarak yeniden bağlanır ve boost devam eder.</div></div>
-  <div class="feature-card"><div class="feature-icon">&#127918;</div><div class="feature-name">Çoklu Oyun</div><div class="feature-desc">Aynı anda birden fazla oyunu boost edin. Premium planda 32 oyuna kadar destek.</div></div>
-  <div class="feature-card"><div class="feature-icon">&#128101;</div><div class="feature-name">Çoklu Hesap</div><div class="feature-desc">Birden fazla Steam hesabını aynı anda yönetin ve boost yapın.</div></div>
-  <div class="feature-card"><div class="feature-icon">&#128200;</div><div class="feature-name">İstatistikler</div><div class="feature-desc">Toplam boost süresi, hesap durumu ve detaylı istatistikleri takip edin.</div></div>
- </div>
+  <h2 class="features-title">Why Hour Boost?</h2>
+  <p class="features-sub">Easy, fast and reliable boost experience</p>
+  <div class="features-grid">
+
+    <div class="feature-card">
+      <div class="feature-icon">&#9889;</div>
+      <div class="feature-name">Instant Start</div>
+      <div class="feature-desc">Connect your Steam account, pick a game, start boosting with one click. Setup takes 1 minute.</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">&#128274;</div>
+      <div class="feature-name">Secure Connection</div>
+      <div class="feature-desc">Steam Guard and 2FA support. Your password is never stored on the server — only a session token is used.</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">&#128260;</div>
+      <div class="feature-name">Auto Reconnect</div>
+      <div class="feature-desc">If the connection drops, it automatically reconnects and continues boosting.</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">&#127918;</div>
+      <div class="feature-name">Multiple Games</div>
+      <div class="feature-desc">Boost multiple games at the same time. Up to 32 games supported on the Premium plan.</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">&#128101;</div>
+      <div class="feature-name">Multiple Accounts</div>
+      <div class="feature-desc">Manage and boost multiple Steam accounts simultaneously.</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">&#128200;</div>
+      <div class="feature-name">Statistics</div>
+      <div class="feature-desc">Track total boost time, account status, and detailed statistics.</div>
+    </div>
+
+  </div>
 </section>
-<!-- AdSense Reklam Birimi -->
+
+<!-- AdSense Ad Unit -->
 <div style="position:relative;z-index:1;max-width:900px;margin:0 auto;padding:0 20px 40px;text-align:center;">
-  <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-4233612570799995" data-ad-slot="auto" data-ad-format="auto" data-full-width-responsive="true"></ins>
+  <ins class="adsbygoogle" style="display:block"
+       data-ad-client="ca-pub-4233612570799995"
+       data-ad-slot="auto"
+       data-ad-format="auto"
+       data-full-width-responsive="true"></ins>
   <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
 </div>
 
 <section class="cta-section">
- <h2>Hemen Başlayın</h2>
- <p>Ücretsiz plan ile hemen boost yapmaya başlayın. Ödeme gerektirmez.</p>
- <a href="/dashboard" class="hero-btn-primary">&#128640; Ücretsiz Hesap Oluştur</a>
+  <h2>Get Started Now</h2>
+  <p>Start boosting right away with the free plan. No payment required.</p>
+  <a href="/en/dashboard" class="hero-btn-primary">&#128640; Create a Free Account</a>
 </section>
-<footer class="footer">&copy; 2025 HourBoost.com.tr — Tüm hakları saklıdır.<br><div style="margin-top:10px;"><a href="/gizlilik" style="color:var(--text-muted);text-decoration:none;margin:0 8px;">Gizlilik Politikası</a><a href="/kullanim-sartlari" style="color:var(--text-muted);text-decoration:none;margin:0 8px;">Kullanım Şartları</a><a href="/mesafeli-satis" style="color:var(--text-muted);text-decoration:none;margin:0 8px;">Mesafeli Satış</a><a href="/iade-politikasi" style="color:var(--text-muted);text-decoration:none;margin:0 8px;">İade Politikası</a><a href="/hakkimizda" style="color:var(--text-muted);text-decoration:none;margin:0 8px;">Hakkımızda</a><a href="/cerez-politikasi" style="color:var(--text-muted);text-decoration:none;margin:0 8px;">Çerez Politikası</a></div></footer>
+
+<footer class="footer">
+  &copy; 2025 HourBoost.com.tr — All rights reserved.<br>
+  <div style="margin-top:10px;">
+    <a href="/en/privacy" style="color:var(--text-muted);text-decoration:none;margin:0 8px;">Privacy Policy</a>
+    <a href="/en/terms-of-service" style="color:var(--text-muted);text-decoration:none;margin:0 8px;">Terms of Service</a>
+    <a href="/en/distance-selling" style="color:var(--text-muted);text-decoration:none;margin:0 8px;">Distance Selling</a>
+    <a href="/en/refund-policy" style="color:var(--text-muted);text-decoration:none;margin:0 8px;">Refund Policy</a>
+    <a href="/en/about" style="color:var(--text-muted);text-decoration:none;margin:0 8px;">About Us</a>
+    <a href="/en/cookie-policy" style="color:var(--text-muted);text-decoration:none;margin:0 8px;">Cookie Policy</a>
+  </div>
+</footer>
+
 <script>
 fetch('/server_status').then(function(r){return r.json();}).then(function(d){
- document.getElementById('hs-users').textContent=d.total_users||'0';
- document.getElementById('hs-boosts').textContent=d.active_boosts||'0';
+  document.getElementById('hs-users').textContent=d.total_users||'0';
+  document.getElementById('hs-boosts').textContent=d.active_boosts||'0';
 }).catch(function(){});
 </script>
-<!-- ── COOKIE BANNER ── -->
+
+<!-- COOKIE BANNER -->
 <style>
 #cookie-banner{position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#13151b;border-top:1px solid rgba(255,255,255,0.1);padding:18px 32px;display:flex;align-items:center;justify-content:space-between;gap:20px;box-shadow:0 -8px 32px rgba(0,0,0,0.4);transform:translateY(100%);transition:transform 0.4s ease;}
 [id="cookie-banner"].visible{transform:translateY(0) !important;}
@@ -162,24 +223,49 @@ fetch('/server_status').then(function(r){return r.json();}).then(function(d){
 @media(max-width:768px)[id="cookie-banner"]{flex-direction:column;align-items:flex-start;padding:16px 20px;}.ck-btns{width:100%;flex-wrap:wrap;}.ck-btn{flex:1;text-align:center;}}
 </style>
 
-
 <div id="cookie-banner">
-  <div class="ck-text"><strong>&#127850; Çerez Bildirimi</strong><br>Sitemizde oturum yönetimi için zorunlu, analitik ve reklam amaçlı çerezler kullanılmaktadır. Detaylar için <a href="/cerez-politikasi">Çerez Politikası</a>'nı inceleyebilirsiniz.</div>
+  <div class="ck-text">
+    <strong>&#127850; Cookie Notice</strong><br>
+    We use essential, analytics, and advertising cookies on our site for session management. For details, please review our <a href="/en/cookie-policy">Cookie Policy</a>.
+  </div>
   <div class="ck-btns">
-    <button class="ck-btn ck-btn-settings" onclick="ckOpenModal()">&#9881; Ayarlar</button>
-    <button class="ck-btn ck-btn-reject" onclick="ckReject()">Reddet</button>
-    <button class="ck-btn ck-btn-accept" onclick="ckAcceptAll()">Tümünü Kabul Et</button>
+    <button class="ck-btn ck-btn-settings" onclick="ckOpenModal()">&#9881; Settings</button>
+    <button class="ck-btn ck-btn-reject" onclick="ckReject()">Reject</button>
+    <button class="ck-btn ck-btn-accept" onclick="ckAcceptAll()">Accept All</button>
   </div>
 </div>
+
 <div id="cookie-modal">
   <div class="ck-modal-card">
-    <div class="ck-modal-title">&#9881; Çerez Tercihlerim</div>
-    <div class="ck-row"><div class="ck-row-info"><div class="ck-name">Zorunlu Çerezler</div><div class="ck-desc">Oturum yönetimi için gereklidir. Devre dışı bırakılamaz.</div></div><label class="ck-toggle"><input type="checkbox" checked disabled><span class="ck-slider"></span></label></div>
-    <div class="ck-row"><div class="ck-row-info"><div class="ck-name">Analitik Çerezler</div><div class="ck-desc">Site kullanımını ölçmek için Google Analytics kullanılır.</div></div><label class="ck-toggle"><input type="checkbox" id="ck-analytics"><span class="ck-slider"></span></label></div>
-    <div class="ck-row"><div class="ck-row-info"><div class="ck-name">Reklam Çerezleri</div><div class="ck-desc">Kişiselleştirilmiş reklam için Google AdSense kullanılır.</div></div><label class="ck-toggle"><input type="checkbox" id="ck-ads"><span class="ck-slider"></span></label></div>
-    <div class="ck-modal-footer"><button class="ck-modal-close" onclick="ckCloseModal()">İptal</button><button class="ck-modal-save" onclick="ckSavePrefs()">Kaydet</button></div>
+    <div class="ck-modal-title">&#9881; My Cookie Preferences</div>
+    <div class="ck-row">
+      <div class="ck-row-info">
+        <div class="ck-name">Essential Cookies</div>
+        <div class="ck-desc">Required for session management. Cannot be disabled.</div>
+      </div>
+      <label class="ck-toggle"><input type="checkbox" checked disabled><span class="ck-slider"></span></label>
+    </div>
+    <div class="ck-row">
+      <div class="ck-row-info">
+        <div class="ck-name">Analytics Cookies</div>
+        <div class="ck-desc">Google Analytics is used to measure site usage.</div>
+      </div>
+      <label class="ck-toggle"><input type="checkbox" id="ck-analytics"><span class="ck-slider"></span></label>
+    </div>
+    <div class="ck-row">
+      <div class="ck-row-info">
+        <div class="ck-name">Advertising Cookies</div>
+        <div class="ck-desc">Google AdSense is used for personalized advertising.</div>
+      </div>
+      <label class="ck-toggle"><input type="checkbox" id="ck-ads"><span class="ck-slider"></span></label>
+    </div>
+    <div class="ck-modal-footer">
+      <button class="ck-modal-close" onclick="ckCloseModal()">Cancel</button>
+      <button class="ck-modal-save" onclick="ckSavePrefs()">Save</button>
+    </div>
   </div>
 </div>
+
 <script>
 (function(){
 var KEY='hb_cookie_consent';
@@ -200,5 +286,6 @@ document.getElementById('cookie-modal').addEventListener('click',function(e){if(
 var p=getP();if(!p){showBanner();}else{loadScripts(p.analytics,p.ads);}
 })();
 </script>
+
 </body>
 </html>

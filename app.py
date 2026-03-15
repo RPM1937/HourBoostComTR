@@ -162,9 +162,7 @@ def _get_user_agent() -> str:
 
 
 def _create_session_record(user_id: int, token: str):
-    """Yeni oturum kaydı oluştur."""
     try:
-        # Eski oturumları temizle (10'dan fazlaysa en eskiyi sil)
         old_sessions = (
             UserSession.query
             .filter_by(user_id=user_id, is_active=True)
@@ -195,7 +193,6 @@ def _create_session_record(user_id: int, token: str):
 
 
 def _deactivate_session_by_token(token: str):
-    """Token ile oturumu pasifleştir."""
     if not token:
         return
     hint = token[:16]
@@ -206,6 +203,23 @@ def _deactivate_session_by_token(token: str):
             db.session.commit()
     except Exception as e:
         logger.error("Oturum kapatma hatasi: %s", e)
+
+
+# ───────────────────── Dil Yardımcısı ─────────────────────
+
+def _get_request_lang() -> str:
+    """
+    İstek dilini tespit et.
+    Öncelik sırası: URL prefix (/en/) → query param (?lang=en) → varsayılan tr
+    """
+    # URL /en/ ile başlıyorsa İngilizce
+    if request.path.startswith("/en/") or request.path == "/en":
+        return "en"
+    # Query param
+    lang = request.args.get("lang", "")
+    if lang in ("en", "tr"):
+        return lang
+    return "tr"
 
 
 # ───────────────────── Sunucu Başlangıcı ─────────────────────
@@ -288,11 +302,11 @@ def login_required(f):
         if not user_id:
             user_id = session.get("user_id")
         if not user_id:
-            return jsonify({"ok": False, "error": "Giris yapilmamis."}), 401
+            return jsonify({"ok": False, "error": "Not logged in."}), 401
         user = db.session.get(User, user_id)
         if not user:
             session.clear()
-            return jsonify({"ok": False, "error": "Kullanici bulunamadi."}), 401
+            return jsonify({"ok": False, "error": "User not found."}), 401
         g.user = user
         return f(*args, **kwargs)
     return wrapped
@@ -349,7 +363,7 @@ def csrf_check():
         if auth_header.startswith("Bearer "):
             return
         if request.headers.get("X-Requested-With") != "XMLHttpRequest":
-            return jsonify({"error": "Gecersiz istek."}), 403
+            return jsonify({"error": "Invalid request."}), 403
 
 
 _plan_expiry_cache: dict = {}
@@ -380,7 +394,7 @@ def check_plan_expiry():
             db.session.commit()
 
 
-# ───────────────────── Sayfalar ─────────────────────
+# ───────────────────── Sayfalar (TR) ─────────────────────
 
 @app.route("/")
 def index():
@@ -433,6 +447,62 @@ def iletisim():
 @app.route("/cerez-politikasi")
 def cerez_politikasi():
     return render_template("cerez-politikasi.html")
+
+
+# ───────────────────── Sayfalar (EN) ─────────────────────
+
+@app.route("/en/")
+@app.route("/en")
+def index_en():
+    uid = session.get("user_id")
+    if uid and db.session.get(User, uid):
+        return render_template("en/index.html")
+    return render_template("en/landing.html")
+
+
+@app.route("/en/dashboard")
+def dashboard_en():
+    return render_template("en/index.html")
+
+
+@app.route("/en/pricing")
+def pricing_en():
+    return render_template("en/pricing.html")
+
+
+@app.route("/en/privacy")
+def privacy_en():
+    return render_template("en/gizlilik.html")
+
+
+@app.route("/en/terms-of-service")
+def terms_en():
+    return render_template("en/kullanim-sartlari.html")
+
+
+@app.route("/en/distance-selling")
+def distance_selling_en():
+    return render_template("en/mesafeli-satis.html")
+
+
+@app.route("/en/refund-policy")
+def refund_policy_en():
+    return render_template("en/iade-politikasi.html")
+
+
+@app.route("/en/about")
+def about_en():
+    return render_template("en/hakkimizda.html")
+
+
+@app.route("/en/contact")
+def contact_en():
+    return render_template("en/hakkimizda.html")
+
+
+@app.route("/en/cookie-policy")
+def cookie_policy_en():
+    return render_template("en/cerez-politikasi.html")
 
 
 @app.route("/ads.txt")
@@ -493,15 +563,19 @@ def register():
     u = sanitize(data.get("username", ""), 40)
     e = sanitize(data.get("email", ""), 120).lower()
     p = data.get("password", "")
+    # Kayıt sayfasının diline göre mail dili belirle
+    lang = data.get("lang", "tr")
+    if lang not in ("en", "tr"):
+        lang = "tr"
 
     if not u or not e or not p:
-        return jsonify({"ok": False, "error": "Tum alanlar gerekli."})
+        return jsonify({"ok": False, "error": "All fields are required." if lang == "en" else "Tum alanlar gerekli."})
     if len(p) < 6:
-        return jsonify({"ok": False, "error": "Sifre en az 6 karakter olmali."})
+        return jsonify({"ok": False, "error": "Password must be at least 6 characters." if lang == "en" else "Sifre en az 6 karakter olmali."})
     if User.query.filter_by(username=u).first():
-        return jsonify({"ok": False, "error": "Bu kullanici adi alinmis."})
+        return jsonify({"ok": False, "error": "This username is already taken." if lang == "en" else "Bu kullanici adi alinmis."})
     if User.query.filter_by(email=e).first():
-        return jsonify({"ok": False, "error": "Bu e-posta adresi alinmis."})
+        return jsonify({"ok": False, "error": "This email address is already in use." if lang == "en" else "Bu e-posta adresi alinmis."})
 
     verification_token = secrets.token_urlsafe(32)
     user = User(
@@ -510,12 +584,13 @@ def register():
         is_verified=False,
         verification_token=verification_token,
         verification_sent_at=datetime.utcnow(),
+        lang=lang,  # Dili kaydet
     )
     user.set_password(p)
     db.session.add(user)
     db.session.commit()
 
-    mail_sent = mailer.send_verification_email(e, u, verification_token)
+    mail_sent = mailer.send_verification_email(e, u, verification_token, lang=lang)
     if not mail_sent:
         logger.warning("Dogrulama maili gonderilemedi: %s", e)
 
@@ -528,41 +603,45 @@ def register():
 
 @app.route("/verify-email/<token>")
 def verify_email(token):
+    lang = request.args.get("lang", "tr")
+    if lang not in ("en", "tr"):
+        lang = "tr"
+
+    template = "en/verify_result.html" if lang == "en" else "verify_result.html"
+
     user = User.query.filter_by(verification_token=token).first()
     if not user:
-        return render_template(
-            "verify_result.html",
-            success=False,
-            message="Geçersiz veya süresi dolmuş doğrulama linki.",
-        )
+        return render_template(template, success=False,
+            message="Invalid or expired verification link." if lang == "en"
+            else "Geçersiz veya süresi dolmuş doğrulama linki.")
+
     if not user.verification_sent_at:
-        return render_template(
-            "verify_result.html",
-            success=False,
-            message="Geçersiz doğrulama linki.",
-        )
+        return render_template(template, success=False,
+            message="Invalid verification link." if lang == "en"
+            else "Geçersiz doğrulama linki.")
+
     elapsed = datetime.utcnow() - user.verification_sent_at
     if elapsed.total_seconds() > 86400:
-        return render_template(
-            "verify_result.html",
-            success=False,
-            message="Doğrulama linkinin süresi dolmuş. Lütfen yeni link isteyin.",
-        )
+        return render_template(template, success=False,
+            message="Verification link has expired. Please request a new one." if lang == "en"
+            else "Doğrulama linkinin süresi dolmuş. Lütfen yeni link isteyin.")
+
     if user.is_verified:
-        return render_template(
-            "verify_result.html",
-            success=True,
-            message="E-posta adresiniz zaten doğrulanmış.",
-        )
+        return render_template(template, success=True,
+            message="Your email address is already verified." if lang == "en"
+            else "E-posta adresiniz zaten doğrulanmış.")
+
     user.is_verified = True
     user.verification_token = None
     db.session.commit()
-    mailer.send_welcome_email(user.email, user.username)
-    return render_template(
-        "verify_result.html",
-        success=True,
-        message="E-posta adresiniz başarıyla doğrulandı! Artık Steam hesabı ekleyebilirsiniz.",
-    )
+
+    # Kullanıcının kayıtlı diliyle hoş geldin maili gönder
+    user_lang = getattr(user, "lang", "tr") or "tr"
+    mailer.send_welcome_email(user.email, user.username, lang=user_lang)
+
+    return render_template(template, success=True,
+        message="Your email has been verified! You can now add Steam accounts." if lang == "en"
+        else "E-posta adresiniz başarıyla doğrulandı! Artık Steam hesabı ekleyebilirsiniz.")
 
 
 @app.route("/resend-verification", methods=["POST"])
@@ -570,21 +649,26 @@ def verify_email(token):
 @limiter.limit("3 per hour")
 def resend_verification():
     user = g.user
+    lang = getattr(user, "lang", "tr") or "tr"
+
     if user.is_verified:
-        return jsonify({"ok": False, "error": "Hesabiniz zaten dogrulanmis."})
+        return jsonify({"ok": False, "error": "Your account is already verified." if lang == "en" else "Hesabiniz zaten dogrulanmis."})
+
     if user.verification_sent_at:
         elapsed = (datetime.utcnow() - user.verification_sent_at).total_seconds()
         if elapsed < 300:
             remaining = int(300 - elapsed)
-            return jsonify({"ok": False, "error": f"Lutfen {remaining} saniye bekleyin."})
+            return jsonify({"ok": False, "error": f"Please wait {remaining} seconds." if lang == "en" else f"Lutfen {remaining} saniye bekleyin."})
+
     token = secrets.token_urlsafe(32)
     user.verification_token = token
     user.verification_sent_at = datetime.utcnow()
     db.session.commit()
-    sent = mailer.send_verification_email(user.email, user.username, token)
+
+    sent = mailer.send_verification_email(user.email, user.username, token, lang=lang)
     if sent:
-        return jsonify({"ok": True, "message": "Dogrulama maili gonderildi."})
-    return jsonify({"ok": False, "error": "Mail gonderilemedi. Lutfen daha sonra tekrar deneyin."})
+        return jsonify({"ok": True, "message": "Verification email sent." if lang == "en" else "Dogrulama maili gonderildi."})
+    return jsonify({"ok": False, "error": "Failed to send email. Please try again later." if lang == "en" else "Mail gonderilemedi. Lutfen daha sonra tekrar deneyin."})
 
 
 # ───────────────────── Şifre Sıfırlama ─────────────────────
@@ -594,45 +678,57 @@ def resend_verification():
 def forgot_password():
     data = request.json
     email = sanitize(data.get("email", ""), 120)
+    lang = data.get("lang", "tr")
+    if lang not in ("en", "tr"):
+        lang = "tr"
+
     if not email:
-        return jsonify({"ok": False, "error": "E-posta adresi gerekli."})
+        return jsonify({"ok": False, "error": "Email address is required." if lang == "en" else "E-posta adresi gerekli."})
 
     user = User.query.filter_by(email=email).first()
 
-    # Güvenlik: kullanıcı bulunsun ya da bulunmasın aynı mesaj
-    _GENERIC_MSG = {
+    _generic_msg = {
         "ok": True,
-        "message": "Eğer bu e-posta kayıtlıysa sıfırlama linki gönderildi.",
+        "message": "If this email is registered, a reset link has been sent." if lang == "en"
+        else "Eğer bu e-posta kayıtlıysa sıfırlama linki gönderildi.",
     }
 
     if not user:
-        return jsonify(_GENERIC_MSG)
+        return jsonify(_generic_msg)
 
-    # 5 dakikada bir istek sınırı
     if user.reset_token_expires:
         remaining = (user.reset_token_expires - datetime.utcnow()).total_seconds()
         if remaining > (3600 - 300):
-            return jsonify(_GENERIC_MSG)
+            return jsonify(_generic_msg)
 
     token = secrets.token_urlsafe(32)
     user.reset_token = token
     user.reset_token_expires = datetime.utcnow() + timedelta(hours=1)
     db.session.commit()
 
+    user_lang = getattr(user, "lang", "tr") or "tr"
     import gevent
-    gevent.spawn(mailer.send_password_reset_email, user.email, user.username, token)
+    gevent.spawn(mailer.send_password_reset_email, user.email, user.username, token, user_lang)
 
-    return jsonify(_GENERIC_MSG)
+    return jsonify(_generic_msg)
 
 
 @app.route("/reset-password/<token>")
 def reset_password_page(token):
+    lang = request.args.get("lang", "tr")
+    if lang not in ("en", "tr"):
+        lang = "tr"
+    template = "en/reset_password.html" if lang == "en" else "reset_password.html"
+
     user = User.query.filter_by(reset_token=token).first()
     if not user or not user.reset_token_expires:
-        return render_template("reset_password.html", valid=False, message="Geçersiz veya süresi dolmuş link.")
+        return render_template(template, valid=False,
+            message="Invalid or expired link." if lang == "en" else "Geçersiz veya süresi dolmuş link.")
     if datetime.utcnow() > user.reset_token_expires:
-        return render_template("reset_password.html", valid=False, message="Bu linkin süresi dolmuş. Lütfen yeni talep oluşturun.")
-    return render_template("reset_password.html", valid=True, token=token)
+        return render_template(template, valid=False,
+            message="This link has expired. Please create a new request." if lang == "en"
+            else "Bu linkin süresi dolmuş. Lütfen yeni talep oluşturun.")
+    return render_template(template, valid=True, token=token)
 
 
 @app.route("/reset-password", methods=["POST"])
@@ -641,21 +737,24 @@ def reset_password():
     data = request.json
     token = data.get("token", "")
     new_password = data.get("password", "")
+
     if not token or not new_password:
-        return jsonify({"ok": False, "error": "Eksik bilgi."})
+        return jsonify({"ok": False, "error": "Missing information."})
     if len(new_password) < 6:
-        return jsonify({"ok": False, "error": "Şifre en az 6 karakter olmalı."})
+        return jsonify({"ok": False, "error": "Password must be at least 6 characters."})
+
     user = User.query.filter_by(reset_token=token).first()
     if not user or not user.reset_token_expires:
-        return jsonify({"ok": False, "error": "Geçersiz link."})
+        return jsonify({"ok": False, "error": "Invalid link."})
     if datetime.utcnow() > user.reset_token_expires:
-        return jsonify({"ok": False, "error": "Linkin süresi dolmuş."})
+        return jsonify({"ok": False, "error": "Link has expired."})
+
     user.set_password(new_password)
     user.reset_token = None
     user.reset_token_expires = None
     db.session.commit()
     logger.info("Sifre sifirlandi: %s", user.username)
-    return jsonify({"ok": True, "message": "Şifreniz başarıyla güncellendi."})
+    return jsonify({"ok": True, "message": "Your password has been updated successfully."})
 
 
 @app.route("/change-password", methods=["POST"])
@@ -665,17 +764,20 @@ def change_password():
     data = request.json
     current_password = data.get("current_password", "")
     new_password = data.get("new_password", "")
+
     if not current_password or not new_password:
-        return jsonify({"ok": False, "error": "Tüm alanlar gerekli."})
+        return jsonify({"ok": False, "error": "All fields are required."})
     if len(new_password) < 6:
-        return jsonify({"ok": False, "error": "Yeni şifre en az 6 karakter olmalı."})
+        return jsonify({"ok": False, "error": "New password must be at least 6 characters."})
+
     user = g.user
     if not user.check_password(current_password):
-        return jsonify({"ok": False, "error": "Mevcut şifreniz yanlış."})
+        return jsonify({"ok": False, "error": "Current password is incorrect."})
+
     user.set_password(new_password)
     db.session.commit()
     logger.info("Sifre degistirildi: %s", user.username)
-    return jsonify({"ok": True, "message": "Şifreniz başarıyla güncellendi."})
+    return jsonify({"ok": True, "message": "Your password has been updated successfully."})
 
 
 # ───────────────────── E-posta Değiştirme ─────────────────────
@@ -687,43 +789,61 @@ def change_email():
     data = request.json
     new_email = sanitize(data.get("email", ""), 120)
     password = data.get("password", "")
+
     if not new_email or not password:
-        return jsonify({"ok": False, "error": "Tüm alanlar gerekli."})
+        return jsonify({"ok": False, "error": "All fields are required."})
+
     user = g.user
     if not user.check_password(password):
-        return jsonify({"ok": False, "error": "Mevcut şifreniz yanlış."})
+        return jsonify({"ok": False, "error": "Current password is incorrect."})
     if new_email == user.email:
-        return jsonify({"ok": False, "error": "Bu zaten mevcut e-posta adresiniz."})
+        return jsonify({"ok": False, "error": "This is already your current email address."})
     if User.query.filter_by(email=new_email).first():
-        return jsonify({"ok": False, "error": "Bu e-posta adresi başka bir hesapta kullanılıyor."})
+        return jsonify({"ok": False, "error": "This email address is already in use by another account."})
+
     if user.email_change_expires:
         remaining = (user.email_change_expires - datetime.utcnow()).total_seconds()
         if remaining > 0:
-            return jsonify({"ok": False, "error": "Lütfen bekleyin."})
+            return jsonify({"ok": False, "error": "Please wait."})
+
     token = secrets.token_urlsafe(32)
     user.email_change_token = token
     user.email_change_new = new_email
     user.email_change_expires = datetime.utcnow() + timedelta(hours=1)
     db.session.commit()
+
+    user_lang = getattr(user, "lang", "tr") or "tr"
     import gevent
-    gevent.spawn(mailer.send_email_change_email, new_email, user.username, token)
-    return jsonify({"ok": True, "message": f"{new_email} adresine doğrulama maili gönderildi."})
+    gevent.spawn(mailer.send_email_change_email, new_email, user.username, token, user_lang)
+
+    return jsonify({"ok": True, "message": f"A verification email has been sent to {new_email}."})
 
 
 @app.route("/confirm-email-change/<token>")
 def confirm_email_change(token):
+    lang = request.args.get("lang", "tr")
+    if lang not in ("en", "tr"):
+        lang = "tr"
+    template = "en/verify_result.html" if lang == "en" else "verify_result.html"
+
     user = User.query.filter_by(email_change_token=token).first()
     if not user or not user.email_change_expires:
-        return render_template("verify_result.html", success=False, message="Geçersiz veya süresi dolmuş link.")
+        return render_template(template, success=False,
+            message="Invalid or expired link." if lang == "en" else "Geçersiz veya süresi dolmuş link.")
     if datetime.utcnow() > user.email_change_expires:
-        return render_template("verify_result.html", success=False, message="Bu linkin süresi dolmuş. Lütfen yeni talep oluşturun.")
+        return render_template(template, success=False,
+            message="This link has expired. Please create a new request." if lang == "en"
+            else "Bu linkin süresi dolmuş. Lütfen yeni talep oluşturun.")
+
     user.email = user.email_change_new
     user.email_change_token = None
     user.email_change_new = None
     user.email_change_expires = None
     db.session.commit()
     logger.info("E-posta degistirildi: %s", user.username)
-    return render_template("verify_result.html", success=True, message="E-posta adresiniz başarıyla güncellendi!")
+    return render_template(template, success=True,
+        message="Your email address has been updated successfully!" if lang == "en"
+        else "E-posta adresiniz başarıyla güncellendi!")
 
 
 @app.route("/site_login", methods=["POST"])
@@ -738,15 +858,15 @@ def site_login():
     user_key = f"user:{u}"
 
     if is_locked_out(ip_key):
-        return jsonify({"ok": False, "error": "Cok fazla basarisiz giris denemesi. 5 dakika bekleyin."}), 429
+        return jsonify({"ok": False, "error": "Too many failed attempts. Please wait 5 minutes."}), 429
     if is_locked_out(user_key):
-        return jsonify({"ok": False, "error": "Bu hesap gecici olarak kilitlendi. 5 dakika sonra tekrar deneyin."}), 429
+        return jsonify({"ok": False, "error": "This account is temporarily locked. Please try again in 5 minutes."}), 429
 
     user = User.query.filter_by(username=u).first()
     if not user or not user.check_password(p):
         record_failed_login(ip_key)
         record_failed_login(user_key)
-        return jsonify({"ok": False, "error": "Kullanici adi veya sifre yanlis."})
+        return jsonify({"ok": False, "error": "Invalid username or password."})
 
     clear_failed_logins(ip_key)
     clear_failed_logins(user_key)
@@ -758,7 +878,6 @@ def site_login():
     session["user_id"] = user.id
     token = generate_api_token(user.id)
 
-    # Oturum kaydı oluştur
     _create_session_record(user.id, token)
 
     return jsonify({"ok": True, "is_admin": user.is_admin, "token": token})
@@ -796,7 +915,6 @@ def site_logout():
 @app.route("/sessions")
 @login_required
 def list_sessions():
-    """Kullanıcının aktif oturumlarını listele."""
     sessions = (
         UserSession.query
         .filter_by(user_id=g.user.id, is_active=True)
@@ -804,7 +922,6 @@ def list_sessions():
         .all()
     )
 
-    # Mevcut token'ın hint'ini bul (hangi oturum bu?)
     current_hint = None
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
@@ -813,21 +930,20 @@ def list_sessions():
     result = []
     for s in sessions:
         ua = s.user_agent or ""
-        # Basit cihaz tespiti
         if "Mobile" in ua or "Android" in ua or "iPhone" in ua:
-            device = "📱 Mobil"
+            device = "📱 Mobile"
         elif "Windows" in ua:
-            device = "🖥️ Windows"
+            device = "🖥 Windows"
         elif "Mac" in ua:
-            device = "🖥️ macOS"
+            device = "🖥 macOS"
         elif "Linux" in ua:
-            device = "🖥️ Linux"
+            device = "🖥 Linux"
         else:
-            device = "🌐 Tarayıcı"
+            device = "🌐 Browser"
 
         result.append({
             "id": s.id,
-            "ip": s.ip_address or "Bilinmiyor",
+            "ip": s.ip_address or "Unknown",
             "device": device,
             "user_agent": ua[:80] + ("..." if len(ua) > 80 else ""),
             "created_at": s.created_at.isoformat(),
@@ -841,24 +957,22 @@ def list_sessions():
 @app.route("/sessions/revoke", methods=["POST"])
 @login_required
 def revoke_session():
-    """Belirli bir oturumu sonlandır."""
     session_id = request.json.get("session_id")
     if not session_id:
-        return jsonify({"ok": False, "error": "session_id gerekli."})
+        return jsonify({"ok": False, "error": "session_id is required."})
 
     sess = db.session.get(UserSession, session_id)
     if not sess or sess.user_id != g.user.id:
-        return jsonify({"ok": False, "error": "Oturum bulunamadi."})
+        return jsonify({"ok": False, "error": "Session not found."})
 
     sess.is_active = False
     db.session.commit()
-    return jsonify({"ok": True, "message": "Oturum sonlandırıldı."})
+    return jsonify({"ok": True, "message": "Session terminated."})
 
 
 @app.route("/sessions/revoke-all", methods=["POST"])
 @login_required
 def revoke_all_sessions():
-    """Mevcut oturum hariç tüm oturumları sonlandır."""
     current_hint = None
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
@@ -866,14 +980,13 @@ def revoke_all_sessions():
 
     query = UserSession.query.filter_by(user_id=g.user.id, is_active=True)
     if current_hint:
-        # Mevcut oturumu koru
         query = query.filter(UserSession.token_hint != current_hint)
 
     count = query.count()
     query.update({"is_active": False}, synchronize_session=False)
     db.session.commit()
 
-    return jsonify({"ok": True, "message": f"{count} oturum sonlandırıldı."})
+    return jsonify({"ok": True, "message": f"{count} session(s) terminated."})
 
 
 # ───────────────────── Plan ─────────────────────
@@ -882,17 +995,20 @@ def revoke_all_sessions():
 @login_required
 def plan_upgrade():
     if not g.user.is_admin:
-        return jsonify({"ok": False, "error": "Plan yukseltmek icin odeme yapmaniz gerekiyor."}), 403
+        return jsonify({"ok": False, "error": "You need to make a payment to upgrade your plan."}), 403
+
     plan = request.json.get("plan", "")
     if plan not in ("basic", "premium"):
-        return jsonify({"ok": False, "error": "Gecersiz plan."})
+        return jsonify({"ok": False, "error": "Invalid plan."})
+
     user = g.user
     if user.plan == plan:
-        return jsonify({"ok": False, "error": "Zaten bu plandasiniz."})
+        return jsonify({"ok": False, "error": "You are already on this plan."})
+
     user.plan = plan
     user.plan_activated_at = datetime.utcnow()
     db.session.commit()
-    return jsonify({"ok": True, "plan": plan, "message": f"{plan.title()} plana gecis yapildi!"})
+    return jsonify({"ok": True, "plan": plan, "message": f"Switched to {plan.title()} plan!"})
 
 
 @app.route("/plan/request", methods=["POST"])
@@ -900,17 +1016,19 @@ def plan_upgrade():
 def plan_request():
     plan = request.json.get("plan")
     if plan not in ("basic", "premium"):
-        return jsonify({"ok": False, "error": "Gecersiz plan."})
+        return jsonify({"ok": False, "error": "Invalid plan."})
+
     existing = Payment.query.filter_by(user_id=g.user.id, status="pending").first()
     if existing:
-        return jsonify({"ok": False, "error": "Zaten bekleyen bir isteginiz var."})
+        return jsonify({"ok": False, "error": "You already have a pending request."})
+
     prices = {"basic": 29.99, "premium": 59.99}
     payment = Payment(user_id=g.user.id, amount=prices[plan], plan=plan, status="pending")
     db.session.add(payment)
     db.session.commit()
     return jsonify({
         "ok": True,
-        "message": f"Talebiniz alindi. {prices[plan]} TL odeme yapildiktan sonra en gec 1 saat icinde aktif edilecektir.",
+        "message": f"Your request has been received. It will be activated within 1 hour after payment of ${prices[plan]}.",
         "payment_info": {"amount": prices[plan], "note": f"SB-{g.user.id}"},
     })
 
@@ -922,10 +1040,12 @@ def plan_request():
 def plan_checkout():
     plan = request.json.get("plan")
     if plan not in ("basic", "premium"):
-        return jsonify({"ok": False, "error": "Gecersiz plan."})
+        return jsonify({"ok": False, "error": "Invalid plan."})
+
     user = g.user
     if user.plan == plan:
-        return jsonify({"ok": False, "error": "Zaten bu plandasiniz."})
+        return jsonify({"ok": False, "error": "You are already on this plan."})
+
     shopier_links = {
         "basic": "https://www.shopier.com/hourboostcomtr/45175746",
         "premium": "https://www.shopier.com/hourboostcomtr/45175760",
@@ -934,7 +1054,7 @@ def plan_checkout():
     return jsonify({
         "ok": True,
         "shopier_url": shopier_links[plan],
-        "note": f"Siparis notu olarak HourBoost kullanici adinizi yazin: {user.username}",
+        "note": f"Write your HourBoost username in the order note: {user.username}",
     })
 
 
@@ -953,14 +1073,16 @@ def shopier_webhook():
     signature = request.headers.get("Shopier-Signature", "")
     if not shopier_lib.verify_webhook(raw_body, signature, Config.SHOPIER_WEBHOOK_SECRET):
         logger.warning("Shopier webhook: IMZA HATASI!")
-        return jsonify({"error": "Gecersiz imza"}), 401
+        return jsonify({"error": "Invalid signature"}), 401
+
     try:
         data = request.json or {}
     except Exception:
-        return jsonify({"error": "Gecersiz veri"}), 400
+        return jsonify({"error": "Invalid data"}), 400
 
     event_type = request.headers.get("Shopier-Event", "") or data.get("event", "")
     logger.info("Shopier webhook alindi: event=%s", event_type)
+
     if event_type != "order.created":
         return jsonify({"ok": True}), 200
 
@@ -979,7 +1101,7 @@ def shopier_webhook():
     plan = shopier_lib.extract_plan(product_id, Config.SHOPIER_BASIC_PRODUCT_ID, Config.SHOPIER_PREMIUM_PRODUCT_ID)
     if not plan:
         logger.error("Shopier webhook: bilinmeyen urun ID=%s", product_id)
-        return jsonify({"error": "Bilinmeyen urun"}), 400
+        return jsonify({"error": "Unknown product"}), 400
 
     username = extract_username_from_note(buyer_note)
     user = User.query.filter_by(username=username).first() if username else None
@@ -987,17 +1109,19 @@ def shopier_webhook():
 
     if not user:
         logger.error("Shopier webhook: kullanici bulunamadi note='%s'", buyer_note)
-        unmatched = Payment(user_id=None, amount=prices.get(plan, 0), plan=plan, status="unmatched", transaction_id=shopier_txn)
+        unmatched = Payment(user_id=None, amount=prices.get(plan, 0), plan=plan,
+                           status="unmatched", transaction_id=shopier_txn)
         db.session.add(unmatched)
         db.session.commit()
-        return jsonify({"ok": True, "warning": "Kullanici bulunamadi, unmatched kaydedildi"}), 200
+        return jsonify({"ok": True, "warning": "User not found, saved as unmatched"}), 200
 
     payment = Payment.query.filter_by(user_id=user.id, status="pending", plan=plan).order_by(Payment.created_at.desc()).first()
     if payment:
         payment.status = "completed"
         payment.transaction_id = shopier_txn
     else:
-        payment = Payment(user_id=user.id, amount=prices[plan], plan=plan, status="completed", transaction_id=shopier_txn)
+        payment = Payment(user_id=user.id, amount=prices[plan], plan=plan,
+                         status="completed", transaction_id=shopier_txn)
         db.session.add(payment)
 
     user.plan = plan
@@ -1053,18 +1177,18 @@ def account_login():
 
     if not acct_id:
         if not username:
-            return jsonify({"ok": False, "error": "Kullanici adi gerekli."})
+            return jsonify({"ok": False, "error": "Username is required."})
         if not user.is_verified:
             return jsonify({
                 "ok": False,
-                "error": "Steam hesabı eklemek için önce e-posta adresinizi doğrulamanız gerekiyor.",
+                "error": "Please verify your email address before adding a Steam account.",
                 "need_verify": True,
             })
         current = SteamAccount.query.filter_by(user_id=user.id).count()
         if current >= limits["max_accounts"]:
             return jsonify({
                 "ok": False,
-                "error": f"Planiniz maksimum {limits['max_accounts']} hesap destekliyor.",
+                "error": f"Your plan supports a maximum of {limits['max_accounts']} accounts.",
                 "upgrade": True,
             })
         existing_acct = SteamAccount.query.filter_by(user_id=user.id, steam_username=username).first()
@@ -1079,13 +1203,13 @@ def account_login():
     acct_db = db.session.get(SteamAccount, acct_id)
     if not acct_db:
         if not username:
-            return jsonify({"ok": False, "error": "Kullanici adi gerekli."})
+            return jsonify({"ok": False, "error": "Username is required."})
         acct_db = SteamAccount(id=acct_id, user_id=user.id, steam_username=username)
         db.session.add(acct_db)
         db.session.commit()
 
     if acct_db.user_id != user.id:
-        return jsonify({"ok": False, "error": "Yetkisiz."})
+        return jsonify({"ok": False, "error": "Unauthorized."})
 
     mgr = boost_service.get_or_create(acct_id, acct_db.steam_username)
 
@@ -1103,7 +1227,7 @@ def account_login():
                 mgr.persona_state = acct_db.persona_state
                 return jsonify({"ok": True, "acct_id": acct_id})
             elif result in (EResult.AccountLoginDeniedNeedTwoFactor, EResult.TwoFactorCodeMismatch, EResult.InvalidLoginAuthCode):
-                return jsonify({"ok": False, "need_code": True, "code_type": "2fa", "msg": "2FA kodu yanlis veya suresi dolmus."})
+                return jsonify({"ok": False, "need_code": True, "code_type": "2fa", "msg": "Invalid or expired 2FA code."})
             else:
                 return jsonify({"ok": False, "error": str(result)})
 
@@ -1119,20 +1243,21 @@ def account_login():
             mgr.persona_state = acct_db.persona_state
             return jsonify({"ok": True, "acct_id": acct_id, "method": "token"})
         elif result in (EResult.AccountLoginDeniedNeedTwoFactor, EResult.TwoFactorCodeMismatch):
-            return jsonify({"ok": False, "need_2fa": True, "acct_id": acct_id, "msg": "2FA kodu gerekiyor."})
+            return jsonify({"ok": False, "need_2fa": True, "acct_id": acct_id, "msg": "2FA code required."})
         elif not password:
-            return jsonify({"ok": False, "error": "Kimlik bilgileri gecersiz, sifre ile giris yapin.", "token_expired": True})
+            return jsonify({"ok": False, "error": "Credentials invalid, please login with password.", "token_expired": True})
 
     if not username or not password:
-        return jsonify({"ok": False, "error": "Kullanici adi ve sifre gerekli."})
+        return jsonify({"ok": False, "error": "Username and password are required."})
 
     result = mgr.login(password, code=code or None, code_type=code_type)
+
     if result == EResult.AccountLogonDenied:
-        return jsonify({"ok": False, "need_code": True, "code_type": "email", "msg": "E-posta Guard kodu gerekli."})
+        return jsonify({"ok": False, "need_code": True, "code_type": "email", "msg": "Email Guard code required."})
     if result == EResult.AccountLoginDeniedNeedTwoFactor:
-        return jsonify({"ok": False, "need_code": True, "code_type": "2fa", "msg": "Authenticator kodu gerekli."})
+        return jsonify({"ok": False, "need_code": True, "code_type": "2fa", "msg": "Authenticator code required."})
     if result == EResult.InvalidLoginAuthCode:
-        return jsonify({"ok": False, "need_code": True, "msg": "Kod yanlis, tekrar dene."})
+        return jsonify({"ok": False, "need_code": True, "msg": "Invalid code, please try again."})
     if result != EResult.OK:
         return jsonify({"ok": False, "error": str(result)})
 
@@ -1169,18 +1294,22 @@ def add_app():
     aid = request.json.get("id")
     acct_db = db.session.get(SteamAccount, acct_id)
     if not acct_db or acct_db.user_id != g.user.id:
-        return jsonify({"ok": False, "error": "Hesap bulunamadi."})
+        return jsonify({"ok": False, "error": "Account not found."})
+
     limits = g.user.plan_limits()
     if len(acct_db.games) >= limits["max_games"]:
-        return jsonify({"ok": False, "error": f"Planiniz hesap basina {limits['max_games']} oyun destekliyor.", "upgrade": True})
+        return jsonify({"ok": False, "error": f"Your plan supports {limits['max_games']} games per account.", "upgrade": True})
+
     try:
         aid = int(aid)
     except (ValueError, TypeError):
-        return jsonify({"ok": False, "error": "Gecerli AppID girin."})
+        return jsonify({"ok": False, "error": "Please enter a valid AppID."})
+
     exists = BoostGame.query.filter_by(account_id=acct_id, app_id=aid).first()
     if not exists:
         db.session.add(BoostGame(account_id=acct_id, app_id=aid))
         db.session.commit()
+
     ids = acct_db.app_ids()
     mgr = boost_service.get(acct_id)
     if mgr:
@@ -1196,14 +1325,17 @@ def remove_app():
     acct_db = db.session.get(SteamAccount, acct_id)
     if not acct_db or acct_db.user_id != g.user.id:
         return jsonify({"ok": False})
+
     try:
         aid = int(aid)
     except (ValueError, TypeError):
         return jsonify({"ok": False})
+
     game = BoostGame.query.filter_by(account_id=acct_id, app_id=aid).first()
     if game:
         db.session.delete(game)
         db.session.commit()
+
     ids = acct_db.app_ids()
     mgr = boost_service.get(acct_id)
     if mgr:
@@ -1219,12 +1351,15 @@ def set_status():
     acct_id = request.json.get("acct_id")
     state = request.json.get("state", 1)
     if state not in (1, 3, 7):
-        return jsonify({"ok": False, "error": "Gecersiz durum."})
+        return jsonify({"ok": False, "error": "Invalid status."})
+
     acct_db = db.session.get(SteamAccount, acct_id)
     if not acct_db or acct_db.user_id != g.user.id:
         return jsonify({"ok": False})
+
     acct_db.persona_state = state
     db.session.commit()
+
     mgr = boost_service.get(acct_id)
     if mgr:
         mgr.set_persona(state)
@@ -1235,23 +1370,21 @@ def set_status():
 @login_required
 def toggle_boost():
     acct_id = request.json.get("acct_id")
-    # Zamanlayıcı: kaç saat boost yapılsın? (0 veya None = sınırsız)
     timer_hours = request.json.get("timer_hours", 0)
     try:
         timer_hours = float(timer_hours) if timer_hours else 0
     except (ValueError, TypeError):
         timer_hours = 0
-    # 0.5 ile 24 saat arasında sınırla
     if timer_hours > 0:
         timer_hours = max(0.5, min(24.0, timer_hours))
 
     acct_db = db.session.get(SteamAccount, acct_id)
     if not acct_db or acct_db.user_id != g.user.id:
-        return jsonify({"ok": False, "error": "Hesap bulunamadi."})
+        return jsonify({"ok": False, "error": "Account not found."})
 
     mgr = boost_service.get(acct_id)
     if not mgr or not mgr.logged_in:
-        return jsonify({"ok": False, "error": "Once Steam baglantisi yapin."})
+        return jsonify({"ok": False, "error": "Please connect to Steam first."})
 
     if mgr.boosting:
         boost_start = mgr.start_time
@@ -1272,7 +1405,7 @@ def toggle_boost():
 
     ids = acct_db.app_ids()
     if not ids:
-        return jsonify({"ok": False, "error": "Oyun listesi bos."})
+        return jsonify({"ok": False, "error": "Game list is empty."})
 
     limits = g.user.plan_limits()
 
@@ -1289,9 +1422,8 @@ def toggle_boost():
         limit_seconds = daily_hours * 3600
         remaining = limit_seconds - used_seconds
         if remaining <= 0:
-            return jsonify({"ok": False, "error": f"Gunluk {daily_hours} saatlik limitinize ulastiniz.", "upgrade": True})
+            return jsonify({"ok": False, "error": f"You have reached your daily {daily_hours}-hour limit.", "upgrade": True})
 
-        # Zamanlayıcı varsa onu da kontrol et
         if timer_hours > 0:
             remaining = min(remaining, timer_hours * 3600)
 
@@ -1323,7 +1455,6 @@ def toggle_boost():
         gevent.spawn(_auto_stop_on_limit)
 
     else:
-        # Günlük limit yok ama zamanlayıcı var mı?
         if timer_hours > 0:
             _uid_timer = g.user.id
             timer_seconds = timer_hours * 3600
@@ -1349,7 +1480,7 @@ def toggle_boost():
                             )
                             db.session.add(log_t)
                             db.session.commit()
-                    logger.info("[acct:%s] Zamanlayici doldu (%.1f saat)", acct_id, timer_hours)
+                    logger.info("[acct:%s] Timer finished (%.1f hours)", acct_id, timer_hours)
 
             gevent.spawn(_auto_stop_on_timer)
 
@@ -1365,7 +1496,7 @@ def toggle_boost():
         )
         remaining_total = total_hours * 3600 - used_total
         if remaining_total <= 0:
-            return jsonify({"ok": False, "error": f"Planinizdaki {total_hours} saatlik limitinizi tukettiniz.", "upgrade": True})
+            return jsonify({"ok": False, "error": f"You have used all {total_hours} hours in your plan.", "upgrade": True})
 
         _uid_total = g.user.id
 
@@ -1390,7 +1521,7 @@ def toggle_boost():
                         )
                         db.session.add(log3)
                         db.session.commit()
-                logger.info("[acct:%s] Toplam limit doldu", acct_id)
+                logger.info("[acct:%s] Total limit reached", acct_id)
 
         gevent.spawn(_auto_stop_on_total_limit)
 
@@ -1451,11 +1582,9 @@ def my_stats():
 @app.route("/stats/games")
 @login_required
 def game_stats():
-    """Hangi oyunda kaç saat harcandığını döndür."""
     user = g.user
     logs = BoostLog.query.filter_by(user_id=user.id).all()
-
-    game_hours: dict = {}  # {app_id: total_seconds}
+    game_hours: dict = {}
 
     for log in logs:
         if not log.app_ids_json or log.duration_seconds <= 0:
@@ -1466,17 +1595,15 @@ def game_stats():
             continue
         if not app_ids:
             continue
-        # Süreyi eşit böl
         per_game = log.duration_seconds / len(app_ids)
         for aid in app_ids:
             aid_str = str(aid)
             game_hours[aid_str] = game_hours.get(aid_str, 0) + per_game
 
-    # Sıralı liste (en çok oynanan önce)
     sorted_games = sorted(game_hours.items(), key=lambda x: x[1], reverse=True)
     result = [
         {"app_id": int(k), "hours": round(v / 3600, 1)}
-        for k, v in sorted_games[:20]  # En fazla 20 oyun
+        for k, v in sorted_games[:20]
     ]
     return jsonify({"games": result, "total_tracked": len(game_hours)})
 
@@ -1513,20 +1640,24 @@ def steam_profile():
     acct_db = db.session.get(SteamAccount, acct_id) if acct_id else None
     if not acct_db or acct_db.user_id != g.user.id:
         return jsonify({"ok": False})
+
     mgr = boost_service.get(acct_id)
     if not mgr or not mgr.logged_in:
         return jsonify({"ok": False})
+
     try:
         client = mgr.client
         me = client.user
         if not me:
             return jsonify({"ok": False})
+
         steamid = str(client.steam_id)
         name = getattr(me, "name", "") or ""
         avatar_url = ""
         avatar_hash = getattr(me, "avatar_hash", b"")
         if avatar_hash and avatar_hash != b"\x00" * 20:
             avatar_url = f"https://avatars.steamstatic.com/{avatar_hash.hex()}_full.jpg"
+
         if not avatar_url:
             try:
                 api_url = f"https://steamcommunity.com/profiles/{steamid}/?xml=1"
@@ -1538,6 +1669,7 @@ def steam_profile():
                     avatar_url = m.group(1)
             except Exception:
                 pass
+
         return jsonify({
             "ok": True, "name": name, "avatar": avatar_url,
             "profile_url": f"https://steamcommunity.com/profiles/{steamid}",
@@ -1556,7 +1688,7 @@ def game_search():
     try:
         url = (
             "https://store.steampowered.com/api/storesearch/"
-            f"?term={urllib.parse.quote(term)}&l=turkish&cc=TR"
+            f"?term={urllib.parse.quote(term)}&l=english&cc=US"
         )
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=5) as r:
@@ -1581,19 +1713,20 @@ def game_info():
             results[str(aid)] = cached["data"]
             continue
         try:
-            url = f"https://store.steampowered.com/api/appdetails?appids={aid}&l=turkish"
+            url = f"https://store.steampowered.com/api/appdetails?appids={aid}&l=english"
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
             with urllib.request.urlopen(req, timeout=5) as r:
                 data = json.loads(r.read().decode())
             if data.get(str(aid), {}).get("success"):
                 d = data[str(aid)]["data"]
                 info = {
-                    "name": d.get("name", "Bilinmiyor"),
+                    "name": d.get("name", "Unknown"),
                     "header_image": d.get("header_image", ""),
                     "genres": [gg["description"] for gg in d.get("genres", [])[:2]],
                 }
             else:
                 info = {"name": f"AppID {aid}", "header_image": "", "genres": []}
+
             with game_cache_lock:
                 if len(game_cache) >= GAME_CACHE_MAX:
                     oldest = sorted(game_cache.items(), key=lambda x: x[1]["ts"])[:50]
@@ -1603,6 +1736,7 @@ def game_info():
             results[str(aid)] = info
         except Exception:
             results[str(aid)] = {"name": f"AppID {aid}", "header_image": "", "genres": []}
+
     return jsonify(results)
 
 
@@ -1612,7 +1746,7 @@ def game_info():
 @login_required
 def admin_page():
     if not g.user.is_admin:
-        return "Yetkisiz", 403
+        return "Unauthorized", 403
     return render_template("admin.html")
 
 
@@ -1620,10 +1754,12 @@ def admin_page():
 @login_required
 def admin_stats():
     if not g.user.is_admin:
-        return jsonify({"error": "Yetkisiz"}), 403
+        return jsonify({"error": "Unauthorized"}), 403
+
     now = datetime.utcnow()
     week_ago = now - timedelta(days=7)
     month_ago = now - timedelta(days=30)
+
     return jsonify({
         "total_users": User.query.count(),
         "new_users_week": User.query.filter(User.created_at > week_ago).count(),
@@ -1653,7 +1789,8 @@ def admin_stats():
 @login_required
 def admin_users():
     if not g.user.is_admin:
-        return jsonify({"error": "Yetkisiz"}), 403
+        return jsonify({"error": "Unauthorized"}), 403
+
     page = request.args.get("page", 1, type=int)
     search = request.args.get("q", "").strip()
     query = User.query
@@ -1677,11 +1814,13 @@ def admin_users():
 @login_required
 def admin_update_user():
     if not g.user.is_admin:
-        return jsonify({"error": "Yetkisiz"}), 403
+        return jsonify({"error": "Unauthorized"}), 403
+
     data = request.json
     user = db.session.get(User, data.get("user_id"))
     if not user:
-        return jsonify({"ok": False, "error": "Kullanici bulunamadi."})
+        return jsonify({"ok": False, "error": "User not found."})
+
     if "plan" in data:
         user.plan = data["plan"]
         if data["plan"] != "free":
@@ -1689,8 +1828,10 @@ def admin_update_user():
             user.plan_activated_at = datetime.utcnow()
         else:
             user.plan_expires = None
+
     if "is_admin" in data:
         user.is_admin = bool(data["is_admin"])
+
     db.session.commit()
     return jsonify({"ok": True})
 
@@ -1699,19 +1840,22 @@ def admin_update_user():
 @login_required
 def admin_payments():
     if not g.user.is_admin:
-        return jsonify({"error": "Yetkisiz"}), 403
+        return jsonify({"error": "Unauthorized"}), 403
+
     payments = (
         Payment.query.order_by(db.case((Payment.status == "unmatched", 0), else_=1), Payment.created_at.desc())
         .limit(50).all()
     )
+
     user_ids = {p.user_id for p in payments if p.user_id}
     user_map = {}
     if user_ids:
         rows = User.query.filter(User.id.in_(user_ids)).all()
         user_map = {u.id: u.username for u in rows}
+
     return jsonify({"payments": [{
         "id": p.id, "user_id": p.user_id,
-        "username": user_map.get(p.user_id, "eslestirilmedi"),
+        "username": user_map.get(p.user_id, "unmatched"),
         "amount": p.amount, "plan": p.plan, "status": p.status,
         "transaction_id": p.transaction_id or "",
         "created_at": p.created_at.isoformat(),
@@ -1722,47 +1866,54 @@ def admin_payments():
 @login_required
 def admin_approve_payment():
     if not g.user.is_admin:
-        return jsonify({"error": "Yetkisiz"}), 403
+        return jsonify({"error": "Unauthorized"}), 403
+
     payment_id = request.json.get("payment_id")
     payment = db.session.get(Payment, payment_id)
     if not payment:
-        return jsonify({"ok": False, "error": "Odeme bulunamadi."})
+        return jsonify({"ok": False, "error": "Payment not found."})
+
     if payment.status == "unmatched":
         username = request.json.get("username", "").strip()
         if not username:
-            return jsonify({"ok": False, "error": "Kullanici adi gerekli."})
+            return jsonify({"ok": False, "error": "Username is required."})
         user = User.query.filter_by(username=username).first()
         if not user:
-            return jsonify({"ok": False, "error": f"'{username}' bulunamadi."})
+            return jsonify({"ok": False, "error": f"'{username}' not found."})
         payment.user_id = user.id
     else:
         user = db.session.get(User, payment.user_id)
         if not user:
-            return jsonify({"ok": False, "error": "Kullanici bulunamadi."})
+            return jsonify({"ok": False, "error": "User not found."})
+
     payment.status = "completed"
     user.plan = payment.plan
     user.plan_expires = datetime.utcnow() + timedelta(days=3650)
     user.plan_activated_at = datetime.utcnow()
     db.session.commit()
-    return jsonify({"ok": True, "message": f"{user.username} kullanicisi {payment.plan} plana yukseltildi."})
+    return jsonify({"ok": True, "message": f"{user.username} upgraded to {payment.plan} plan."})
 
 
 @app.route("/admin/users/delete", methods=["POST"])
 @login_required
 def admin_delete_user():
     if not g.user.is_admin:
-        return jsonify({"error": "Yetkisiz"}), 403
+        return jsonify({"error": "Unauthorized"}), 403
+
     data = request.json
     target_id = data.get("user_id")
+
     if not target_id:
-        return jsonify({"ok": False, "error": "Kullanici ID gerekli."})
+        return jsonify({"ok": False, "error": "User ID is required."})
     if target_id == g.user.id:
-        return jsonify({"ok": False, "error": "Kendi hesabinizi silemezsiniz."})
+        return jsonify({"ok": False, "error": "You cannot delete your own account."})
+
     target_user = db.session.get(User, target_id)
     if not target_user:
-        return jsonify({"ok": False, "error": "Kullanici bulunamadi."})
+        return jsonify({"ok": False, "error": "User not found."})
     if target_user.is_admin:
-        return jsonify({"ok": False, "error": "Admin hesabi silinemez."})
+        return jsonify({"ok": False, "error": "Admin accounts cannot be deleted."})
+
     username = target_user.username
     try:
         steam_accounts = SteamAccount.query.filter_by(user_id=target_id).all()
@@ -1774,28 +1925,32 @@ def admin_delete_user():
                 except Exception:
                     pass
             boost_service.remove(acct.id)
+
         BoostLog.query.filter_by(user_id=target_id).delete(synchronize_session=False)
         Payment.query.filter_by(user_id=target_id).delete(synchronize_session=False)
         UserSession.query.filter_by(user_id=target_id).delete(synchronize_session=False)
+
         for acct in steam_accounts:
             acct_fresh = db.session.get(SteamAccount, acct.id)
             if acct_fresh:
                 db.session.delete(acct_fresh)
+
         db.session.delete(target_user)
         db.session.commit()
         logger.info("Admin %s tarafindan kullanici silindi: %s (ID:%s)", g.user.username, username, target_id)
-        return jsonify({"ok": True, "message": f"{username} basariyla silindi."})
+        return jsonify({"ok": True, "message": f"{username} has been successfully deleted."})
     except Exception as e:
         db.session.rollback()
         logger.error("Kullanici silme hatasi (ID:%s): %s", target_id, e)
-        return jsonify({"ok": False, "error": "Silme islemi basarisiz. Sunucu logu kontrol edin."})
+        return jsonify({"ok": False, "error": "Deletion failed. Check server logs."})
 
 
 @app.route("/admin/announcements/create", methods=["POST"])
 @login_required
 def create_announcement():
     if not g.user.is_admin:
-        return jsonify({"error": "Yetkisiz"}), 403
+        return jsonify({"error": "Unauthorized"}), 403
+
     data = request.json
     ann = Announcement(
         title=sanitize(data.get("title", ""), 200),

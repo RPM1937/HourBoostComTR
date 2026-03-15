@@ -18,6 +18,7 @@ class User(db.Model):
     is_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
+    lang = db.Column(db.String(5), default="tr", nullable=True)
 
     # ── E-posta doğrulama ──────────────────────────
     is_verified = db.Column(db.Boolean, default=False)
