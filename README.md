@@ -50,6 +50,7 @@ Production (Gunicorn):
 gunicorn -c gunicorn.conf.py app:app
 
 🛡️ Security
+
 Steam passwords are encrypted with Fernet symmetric encryption
 
 JWT token blacklist system
